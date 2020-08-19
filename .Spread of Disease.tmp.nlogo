@@ -1,5 +1,9 @@
 turtles-own [
   infected?    ;; has the person been infected with the disease?
+  contagious?
+  symptoms?
+  recovered?
+  hours-since-infection
   home-x ;;
   home-y ;;
   work
@@ -47,6 +51,9 @@ end
 to make-turtles
   create-turtles num-people [
     set infected? false
+    set contagious? false
+    set symptoms? false
+    set recovered? false
     set start-work (random-float 5 + 5)
     set finish-work (random-float 5 + 15)
     set work one-of patches with [business?]
@@ -80,11 +87,33 @@ end
 to recolor
   ask turtles [
     ;; infected turtles are red, others are gray
-    set color ifelse-value infected? [ red ] [ gray ]
+    set color ifelse-value infected? [yellow][gray]
+    if contagious?[
+      set color orange]
+    if symptoms?[
+      set color red]
+    if recovered? [
+      set color green]
   ]
   ask patches [
     ;; infected patches are yellow, others are black
     set pcolor ifelse-value p-infected? [ yellow ] [ black ]
+  ]
+end
+to incubate
+  ask turtles[
+    if infected?[
+      set hours-since-infection hours-since-infection + 1
+      if hours-since-infection + random-float 50.4 > 168  [
+        set contagious? true]
+      if hours-since-infection >  336 [
+        set symptoms? true]
+      if hours-since-infection +  random-float 84 >   756 [ ;;turltes recover 2-4.5 weeks after symptoms show
+        set recovered? true
+        set infected? false
+        set symptoms? false
+        set contagious? false]
+    ]
   ]
 end
 
@@ -97,6 +126,7 @@ to go
   spread-infection
   recolor
   move
+  incubate
   set hours hours + 1
   if hours = 24 [
     set days days + 1
@@ -111,14 +141,14 @@ to spread-infection
     ;; count down to the end of the patch infection
     set infect-time infect-time - 1
   ]
-  ask turtles with [ infected? ] [
+  ask turtles with [ contagious? ] [
     ifelse variant = "network" [
       ;; in the network variant, the disease spreads through links
       ask link-neighbors [ set infected? true ]
     ]
     [ ;; in other variants, the disease spreads spatially
       if random-float 100 < chance-of-infection [
-        ask turtles-here [ set infected? true ]]
+        ask turtles-here with [recovered? = false] [ set infected? true ]]
       if variant = "environmental" [
         ;; in the environmental variant, it spreads to patches as well
         set p-infected? true
@@ -148,10 +178,17 @@ to move
   ]
   [ ;; in non network variants, persons move around randomly
     ask turtles [
+      if symptoms? [
+        if random-float 100 < travel-with-symptoms?[
+          go-work]]
+      if symptoms? = false [go-work]
 
+    ]
+  ]
+end
 
-      ;;Method go to work
-      if hours > (start-work + start-variation) and hours < (finish-work + finish-variation)[
+to go-work
+  if hours > (start-work + start-variation) and hours < (finish-work + finish-variation)[
         if patch-here != work[
           face work
           fd 1]]
@@ -165,9 +202,6 @@ to move
       if hours = 23 [
       set start-variation (random-float 2 - 2)
       set finish-variation (random-float 2 - 2)]
-
-    ]
-  ]
 end
 
 to do-layout
@@ -333,10 +367,10 @@ NIL
 HORIZONTAL
 
 PLOT
-10
-235
-381
-500
+5
+275
+376
+540
 Infection vs. Time
 Time
 NIL
@@ -387,10 +421,10 @@ ticks
 HORIZONTAL
 
 PLOT
-140
-575
-340
-725
+5
+545
+375
+775
 R0 vs. Days
 Days
 R0
@@ -405,9 +439,9 @@ PENS
 "default" 1.0 0 -16777216 true "" "plotxy (days) (infected-today / total-infected-yesterday)"
 
 SLIDER
-195
+190
 105
-367
+380
 138
 chance-of-infection
 chance-of-infection
@@ -420,18 +454,54 @@ chance-of-infection
 HORIZONTAL
 
 SLIDER
-50
-520
-222
-553
+190
+15
+380
+48
 num-businesses
 num-businesses
 0
 100
-13.0
+10.0
 1
 1
 NIL
+HORIZONTAL
+
+PLOT
+385
+505
+805
+735
+plot 1
+NIL
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+true
+"" ""
+PENS
+"Infected" 1.0 1 -1184463 true "" "plot count turtles with [infected?]"
+"Contagious" 1.0 1 -955883 true "" "plot count turtles with [contagious?]"
+"Symptomatic" 1.0 1 -2674135 true "" "plot count turtles with [symptoms?]"
+"Recovered" 1.0 1 -10899396 true "" "plot count turtles with [recovered?]"
+
+SLIDER
+190
+230
+380
+263
+travel-with-symptoms?
+travel-with-symptoms?
+0
+100
+100.0
+1
+1
+%
 HORIZONTAL
 
 @#$#@#$#@
