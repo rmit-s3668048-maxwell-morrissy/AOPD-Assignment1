@@ -11,12 +11,15 @@ turtles-own [
   finish-work
   start-variation
   finish-variation
+  employed?
 ]
 
 patches-own [
   p-infected?  ;; in the environmental variant, has the patch been infected?
   infect-time  ;; how long until the end of the patch infection?
   business?
+  open?
+  time-closed
 ]
 globals [
   days  ;; how many days have passed
@@ -45,6 +48,8 @@ end
 to construct-businesses
   ask n-of num-businesses patches [
     set business? true
+    set open? true
+    set time-closed 0
   ]
 end
 
@@ -54,6 +59,7 @@ to make-turtles
     set contagious? false
     set symptoms? false
     set recovered? false
+    set employed? true
     set start-work (random-float 5 + 5)
     set finish-work (random-float 5 + 15)
     set work one-of patches with [business?]
@@ -127,6 +133,9 @@ to go
   recolor
   move
   incubate
+  if close-businesses-with-case?[
+    policy-business
+    reopen-business]
   set hours hours + 1
   if hours = 24 [
     set days days + 1
@@ -167,6 +176,20 @@ to spread-infection
   ]
 end
 
+to policy-business
+  ask turtles with [symptoms?][
+    if [open?] of work = true [
+      ask work [set open? false]]]
+end
+
+to reopen-business
+  ask patches with [open? = false][
+    set time-closed time-closed + 1
+    if time-closed > 336[
+      set open? true]]
+
+end
+
 ;;;;;;;;;;;;;;
 ;;; Layout ;;;
 ;;;;;;;;;;;;;;
@@ -179,30 +202,38 @@ to move
   [ ;; in non network variants, persons move around randomly
     ask turtles [
       if symptoms? [
-        if random-float 100 < travel-with-symptoms?[
-          go-work]]
-      if symptoms? = false [go-work]
+        ifelse random-float 100 < travel-with-symptoms?[
+            set employed? true
+            go-work]
+          [set employed? false]]
+      if symptoms? = false [
+        set employed? true
+        go-work]
 
     ]
   ]
 end
 
 to go-work
-  if hours > (start-work + start-variation) and hours < (finish-work + finish-variation)[
-        if patch-here != work[
-          face work
-          fd 1]]
+  ifelse [open?] of work = true [
+    if hours > (start-work + start-variation) and hours < (finish-work + finish-variation)[
+      if patch-here != work[
+        face work
+        fd 1]]
 
-      ;;Method go to home
-      if hours > (finish-work + finish-variation)[
-        if xcor > (home-x + 1) or xcor < (home-x - 1)[
-          if  ycor > (home-y + 1) or ycor < (home-y - 1)[
-            face patch home-x home-y
-            fd 1]]]
-      if hours = 23 [
+    ;;Method go to home
+    if hours > (finish-work + finish-variation)[
+      if xcor > (home-x + 1) or xcor < (home-x - 1)[
+        if  ycor > (home-y + 1) or ycor < (home-y - 1)[
+          face patch home-x home-y
+          fd 1]]]
+    if hours = 23 [
       set start-variation (random-float 2 - 2)
       set finish-variation (random-float 2 - 2)]
+  ]
+  [set employed? false]
 end
+
 
 to do-layout
   layout-spring turtles with [ any? link-neighbors ] links 0.4 6 1
@@ -368,9 +399,9 @@ HORIZONTAL
 
 PLOT
 5
-275
+470
 376
-540
+735
 Infection vs. Time
 Time
 NIL
@@ -422,9 +453,9 @@ HORIZONTAL
 
 PLOT
 5
-545
+745
 375
-775
+995
 R0 vs. Days
 Days
 R0
@@ -462,7 +493,7 @@ num-businesses
 num-businesses
 0
 100
-10.0
+20.0
 1
 1
 NIL
@@ -503,6 +534,46 @@ travel-with-symptoms?
 1
 %
 HORIZONTAL
+
+MONITOR
+10
+225
+80
+270
+Economy
+count turtles with [employed?] * 80000
+17
+1
+11
+
+PLOT
+385
+745
+805
+1000
+Economy vs. Time
+Time
+Economy
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -16777216 true "" "plot count turtles with [employed?] * 80000"
+
+SWITCH
+190
+270
+397
+303
+close-businesses-with-case?
+close-businesses-with-case?
+0
+1
+-1000
 
 @#$#@#$#@
 ## ACKNOWLEDGMENT
